@@ -1,9 +1,0 @@
-.ipynb_checkpoints/
-__pycache__/
-*.py[cod]
-*.class
-.env
-venv/
-care_delay_prediction_notebook.py
-feature_importance.csv
-feature_preprocessor.pkl
