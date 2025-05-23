@@ -267,4 +267,4 @@ if __name__ == "__main__":
     print(
         f"Model performance - RMSE: {model_info['performance']['rmse']:.2f}, R²: {model_info['performance']['r2']:.3f}"
     )
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
