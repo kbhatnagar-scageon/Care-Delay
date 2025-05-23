@@ -29,7 +29,7 @@ app = FastAPI(
         "total_beds": 30,
         "occupied_beds": 25,
         "staff_count": 5,
-        "staff_to_patient_ratio": 5.0
+        "patient_to_staff_ratio": 5.0
     }'
     ```
     """,
@@ -90,7 +90,10 @@ class PatientData(BaseModel):
     occupied_beds: int = Field(..., example=25, description="Currently occupied beds")
     staff_count: int = Field(..., example=5, description="Number of staff members")
     staff_to_patient_ratio: float = Field(
-        ..., example=5.0, description="Staff to patient ratio"
+        ...,
+        example=5.0,
+        description="Patient to staff ratio",
+        alias="patient_to_staff_ratio",
     )
 
     # Optional fields - will be calculated if not provided
@@ -107,7 +110,7 @@ class PatientData(BaseModel):
 
 class PredictionResponse(BaseModel):
     predicted_care_delay: float = Field(
-        ..., description="Predicted care delay in minutes"
+        ..., description="Predicted care delay in milliseconds"
     )
 
 
@@ -168,7 +171,7 @@ def extract_time_features(timestamp_str: str) -> dict:
     "/predict",
     response_model=PredictionResponse,
     summary="Predict care delay for a patient",
-    response_description="The predicted care delay in minutes",
+    response_description="The predicted care delay in milliseconds",
 )
 async def predict_care_delay(patient: PatientData):
     """
@@ -192,13 +195,17 @@ async def predict_care_delay(patient: PatientData):
         "total_beds": 30,
         "occupied_beds": 25,
         "staff_count": 5,
-        "staff_to_patient_ratio": 5.0
+        "patient_to_staff_ratio": 5.0
     }'
     ```
     """
     try:
         # Create a dictionary for input data
-        data = patient.dict()
+        data = patient.dict(by_alias=True)
+
+        # Convert the aliased field name back to the internal field name
+        if "patient_to_staff_ratio" in data:
+            data["staff_to_patient_ratio"] = data.pop("patient_to_staff_ratio")
 
         # Extract time features from timestamp
         time_features = extract_time_features(data["registration_timestamp"])
@@ -230,11 +237,14 @@ async def predict_care_delay(patient: PatientData):
         # Create a DataFrame for prediction
         input_df = pd.DataFrame([data])
 
-        # Make prediction
-        prediction = model.predict(input_df)[0]
+        # Make prediction (result is in minutes)
+        prediction_minutes = model.predict(input_df)[0]
 
-        # Create simplified response with renamed field
-        return {"predicted_care_delay": round(float(prediction), 2)}
+        # Convert minutes to milliseconds
+        prediction_milliseconds = prediction_minutes * 60 * 1000
+
+        # Create simplified response with converted value
+        return {"predicted_care_delay": round(float(prediction_milliseconds), 2)}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
